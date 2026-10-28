@@ -22,7 +22,7 @@ Application (PWA) de planification de la préparation physique autour du **kick-
   - remplacement d’un exercice, arrêt ou fin de séance.
 - **Double progression** : propose la charge et les répétitions de la séance suivante d’après l’historique.
 - **Compte rendu des combats** : durée, intensité et fatigue.
-- **Bibliothèque** d’environ 60 exercices, avec filtres (objectif, muscle, salle/domicile, niveau).
+- **Bibliothèque** de 55 exercices, avec filtres (objectif, muscle, salle/domicile, niveau).
 - **Sauvegarde** : export et import d’un fichier JSON, pour passer de l’iPhone au PC.
 
 ## Lancer en local
