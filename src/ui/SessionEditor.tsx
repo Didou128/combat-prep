@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { addDays, DAY_SHORT, dayIndex, formatLong, todayISO, weekStartOf } from '../domain/dates'
 import { TEMPLATES } from '../domain/templates'
 import type { Environment, PlannedSession, SessionKind, SessionStatus, TemplateId } from '../domain/types'
+import { MOBILITY_TEMPLATE_IDS } from '../domain/templates'
 import * as repo from '../db/repo'
 import { errorMessage, Modal, STATUS_LABELS, useConfirm, useToast } from './common'
 
@@ -76,7 +77,7 @@ export function SessionEditor({ session, defaultDate, onClose }: { session?: Pla
   }
 
   const ws = weekStartOf(d.date)
-  const templatesForKind: TemplateId[] = d.kind === 'mobility' ? ['M10', 'M20'] : ['A', 'B', 'C']
+  const templatesForKind: TemplateId[] = d.kind === 'mobility' ? MOBILITY_TEMPLATE_IDS : ['A', 'B', 'C']
 
   return (
     <Modal

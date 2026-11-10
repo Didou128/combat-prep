@@ -32,7 +32,7 @@ export interface PlannedSession {
   updatedAt: string
 }
 
-export type TemplateId = 'A' | 'B' | 'C' | 'M10' | 'M20'
+export type TemplateId = 'A' | 'B' | 'C' | 'M5' | 'M10' | 'M15' | 'M20'
 
 export type EquipmentId =
   | 'barbell'
@@ -116,6 +116,19 @@ export interface CombatLog {
   fatigueAfter: number // 1–10
   notes?: string
   loggedAt: string
+}
+
+/** Point de récupération du jour (une saisie par date, modifiable). Échelles 1 à 5. */
+export interface RecoveryCheckin {
+  date: string // YYYY-MM-DD
+  sleepHours: number
+  sleepQuality: number // 1 = très mauvais … 5 = excellent
+  energy: number // 1 = vidé … 5 = plein d'énergie
+  fatigue: number // 1 = aucune … 5 = épuisé
+  soreness: number // 1 = aucune courbature … 5 = très courbaturé
+  motivation: number // 1 = aucune … 5 = très motivé
+  notes?: string
+  updatedAt: string
 }
 
 // ---------- Bibliothèque ----------

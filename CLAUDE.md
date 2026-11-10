@@ -24,14 +24,11 @@ Langue de l'interface et des échanges : **français**.
 - Les séances générées sont des propositions, toujours modifiables.
 
 ## État
-- Étapes 1 à 3 terminées (V1 fonctionnelle, voir README.md).
-- Prochaine étape : **étape 4**.
-  - Graphiques de progression : charges, volume, assiduité.
-  - Historique des séances.
-  - Suivi de la récupération : sommeil, énergie, fatigue, courbatures, motivation. Il doit déclencher des suggestions prudentes, présentées comme indicatives.
-  - Réorganisation après une séance manquée, sans accumulation.
-  - Routines de mobilité de 5 et 15 minutes.
-- Ensuite, **étape 5** : tests, corrections, documentation.
+- Étapes 1 à 4 terminées (voir README.md).
+  - Étape 4 : page Progrès (graphiques, historique, récupération), point de récupération quotidien, séances manquées, mobilité 5 et 15 min.
+  - Logique dans `src/domain/stats.ts`, `recovery.ts`, `reschedule.ts` (tests : `step4.test.ts`).
+  - Dexie v2 : table `checkins` (clé = date). Sauvegarde en v2 ; les fichiers v1 restent importables.
+- Prochaine étape : **étape 5** : tests, corrections, documentation.
 - Synchronisation iPhone ↔ PC envisagée plus tard avec Supabase. Pour l'instant : export/import JSON.
 
 ## Règles de planification (src/domain/planner.ts)
@@ -40,6 +37,10 @@ Langue de l'interface et des échanges : **français**.
 - Rien le dimanche (AMHE).
 - Si la semaine est trop chargée : retirer une séance plutôt qu'entasser.
 - Ordre de priorité pour la salle : A, puis C, puis B.
+
+## Séances manquées (src/domain/reschedule.ts)
+- Rattrapage uniquement dans la même semaine, sur un jour à venir. Mêmes règles strictes que le planificateur.
+- Sinon : remplacer une séance moins prioritaire (A, puis C, puis B), ou ne pas rattraper (statut « annulée », jamais supprimée).
 
 ## Progression (src/domain/progression.ts)
 Double progression avec RIR. Un seul paramètre augmente à la fois.

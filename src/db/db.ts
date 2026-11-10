@@ -1,5 +1,5 @@
 import Dexie, { type EntityTable } from 'dexie'
-import type { CombatLog, PlannedSession, SetLog, Settings, WeekRecord, WorkoutLog } from '../domain/types'
+import type { CombatLog, PlannedSession, RecoveryCheckin, SetLog, Settings, WeekRecord, WorkoutLog } from '../domain/types'
 import { ALL_GYM_EQUIPMENT } from '../domain/exercises'
 
 export class AppDB extends Dexie {
@@ -9,6 +9,7 @@ export class AppDB extends Dexie {
   workouts!: EntityTable<WorkoutLog, 'id'>
   sets!: EntityTable<SetLog, 'id'>
   combatLogs!: EntityTable<CombatLog, 'id'>
+  checkins!: EntityTable<RecoveryCheckin, 'date'>
 
   constructor(name = 'combat-prep') {
     super(name)
@@ -19,6 +20,10 @@ export class AppDB extends Dexie {
       workouts: 'id, plannedSessionId, startedAt',
       sets: 'id, workoutLogId, exerciseId, loggedAt',
       combatLogs: 'id, plannedSessionId, date',
+    })
+    // v2 (étape 4) : points de récupération, un par jour. Nouvelle table : aucune donnée existante à migrer.
+    this.version(2).stores({
+      checkins: 'date',
     })
   }
 }

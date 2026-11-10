@@ -141,3 +141,102 @@ describe('persistance et sauvegarde', () => {
     expect(() => parseBackup(JSON.stringify({ app: 'combat-prep', schemaVersion: 1, data: { settings: [], sessions: [{ id: 1 }] } }))).toThrow(/sessions/)
   })
 })
+
+describe('étape 4 : récupération, séances manquées, historique', () => {
+  const ck = { sleepHours: 7, sleepQuality: 3, energy: 3, fatigue: 3, soreness: 2, motivation: 4 }
+
+  it('un point de récupération par jour, modifiable, et refus des valeurs hors échelle', async () => {
+    await repo.saveCheckin({ date: '2026-10-29', ...ck })
+    await repo.saveCheckin({ date: '2026-10-29', ...ck, energy: 5 })
+    const list = await repo.listCheckins('2026-10-01', '2026-10-31')
+    expect(list).toHaveLength(1)
+    expect(list[0].energy).toBe(5)
+    await expect(repo.saveCheckin({ date: '2026-10-30', ...ck, fatigue: 9 })).rejects.toThrow()
+  })
+
+  it('séance manquée : déplacement dans la semaine, ou abandon sans suppression', async () => {
+    // Semaine du 26 oct. : kick mercredi (défaut), AMHE dimanche. A lundi manquée.
+    const ws = '2026-10-26'
+    await repo.ensureWeek(ws, ws)
+    const a = await repo.addSession({ date: ws, startTime: '18:00', durationMin: 60, kind: 'prep', templateId: 'A', environment: 'gym', status: 'planned', source: 'generated' })
+    const today = '2026-10-29'
+    expect((await repo.listMissed(today)).map((s) => s.id)).toEqual([a])
+    const opts = await repo.rescheduleOptions(a, today)
+    const move = opts.find((o) => o.kind === 'move')!
+    await repo.applyReschedule(a, move)
+    const moved = (await db.sessions.get(a))!
+    expect(moved.date >= today).toBe(true)
+    expect(await repo.listMissed(today)).toEqual([])
+
+    const b = await repo.addSession({ date: '2026-10-27', startTime: '18:00', durationMin: 60, kind: 'prep', templateId: 'B', environment: 'home', status: 'planned', source: 'generated' })
+    await repo.applyReschedule(b, { kind: 'skip' })
+    const skipped = (await db.sessions.get(b))!
+    expect(skipped.status).toBe('cancelled')
+    expect(skipped.notes).toMatch(/non rattrapée/)
+  })
+
+  it('remplacement : la séance prioritaire prend la place, la manquée est annulée', async () => {
+    const ws = '2026-10-26'
+    await repo.ensureWeek(ws, ws)
+    const a = await repo.addSession({ date: ws, startTime: '18:00', durationMin: 60, kind: 'prep', templateId: 'A', environment: 'gym', status: 'planned', source: 'generated' })
+    const b = await repo.addSession({ date: '2026-10-30', startTime: '18:00', durationMin: 60, kind: 'prep', templateId: 'B', environment: 'home', status: 'planned', source: 'generated' })
+    const opts = await repo.rescheduleOptions(a, '2026-10-30')
+    const replace = opts.find((o) => o.kind === 'replace')!
+    expect(replace).toBeDefined()
+    await repo.applyReschedule(a, replace)
+    expect((await db.sessions.get(b))).toMatchObject({ templateId: 'A', environment: 'gym', date: '2026-10-30', status: 'planned' })
+    expect((await db.sessions.get(a))?.status).toBe('cancelled')
+    expect(await db.sessions.count()).toBe(4) // rien n'a été supprimé
+  })
+
+  it('mobilité rapide : crée une séance M5 ou M15 aujourd’hui', async () => {
+    const id = await repo.startQuickMobility('M15', new Date(2026, 9, 29, 7, 5))
+    expect(await db.sessions.get(id)).toMatchObject({ date: '2026-10-29', startTime: '07:05', durationMin: 15, kind: 'mobility', templateId: 'M15' })
+    expect(await repo.startQuickMobility('M15', new Date(2026, 9, 29, 7, 6))).toBe(id) // pas de doublon
+    expect(await repo.startQuickMobility('M5', new Date(2026, 9, 29, 7, 6))).not.toBe(id)
+  })
+
+  it('historique : séances passées ou renseignées, récentes d’abord, avec leurs séries', async () => {
+    const old = await repo.addSession({ date: '2026-10-20', startTime: '18:00', durationMin: 60, kind: 'prep', templateId: 'B', environment: 'gym', status: 'planned', source: 'manual' })
+    const w = await repo.startOrResumeWorkout(old)
+    await repo.logSet({ workoutLogId: w.id, exerciseId: 'curl-halteres', setIndex: 0, reps: 15, loadKg: 6, rir: 2 })
+    await repo.finishWorkout(w.id, 'done')
+    await repo.addSession({ date: '2026-10-22', startTime: '18:00', durationMin: 60, kind: 'prep', templateId: 'A', environment: 'gym', status: 'planned', source: 'manual' })
+    await repo.addSession({ date: '2026-11-05', startTime: '18:00', durationMin: 60, kind: 'prep', templateId: 'C', environment: 'gym', status: 'planned', source: 'manual' })
+    const { entries, hasMore } = await repo.listHistory(10, '2026-10-29')
+    expect(entries.map((e) => e.session.date)).toEqual(['2026-10-22', '2026-10-20']) // la séance future n'apparaît pas
+    expect(entries[1].sets.map((s) => s.loadKg)).toEqual([6])
+    expect(hasMore).toBe(false)
+    expect((await repo.listHistory(1, '2026-10-29')).hasMore).toBe(true)
+  })
+
+  it('sauvegarde v2 : les points de récupération sont exportés et réimportés ; un fichier v1 reste importable', async () => {
+    await repo.saveCheckin({ date: '2026-10-29', ...ck })
+    const backup = await exportBackup()
+    expect(backup.schemaVersion).toBe(2)
+    useDatabase(new AppDB(`import-v2-${n++}`))
+    await importBackup(parseBackup(JSON.stringify(backup)))
+    expect(await db.checkins.count()).toBe(1)
+
+    const v1 = { ...backup, schemaVersion: 1, data: { ...backup.data } } as Record<string, unknown> & { data: Record<string, unknown> }
+    delete v1.data.checkins
+    useDatabase(new AppDB(`import-v1-${n++}`))
+    await importBackup(parseBackup(JSON.stringify(v1)))
+    expect(await db.checkins.count()).toBe(0)
+    expect(await db.sessions.count()).toBe(backup.data.sessions.length)
+  })
+
+  it('migration : une base v1 existante s’ouvre en v2 sans perte', async () => {
+    const { default: Dexie } = await import('dexie')
+    const name = `migr-${n++}`
+    const v1 = new Dexie(name)
+    v1.version(1).stores({ settings: 'id', sessions: 'id, date, kind, status', weeks: 'weekStart', workouts: 'id, plannedSessionId, startedAt', sets: 'id, workoutLogId, exerciseId, loggedAt', combatLogs: 'id, plannedSessionId, date' })
+    await v1.table('sessions').add({ id: 'x', date: '2026-10-20', startTime: '18:00', durationMin: 60, kind: 'prep', templateId: 'B', status: 'done', source: 'manual', createdAt: '', updatedAt: '' })
+    v1.close()
+    const v2 = new AppDB(name)
+    await v2.open()
+    expect(await v2.sessions.get('x')).toBeDefined()
+    expect(await v2.checkins.count()).toBe(0)
+    v2.close()
+  })
+})

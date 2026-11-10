@@ -1,15 +1,22 @@
 import { useEffect, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { db } from '../db/db'
 import * as repo from '../db/repo'
 import { addDays, DAY_SHORT, formatLong, timeToMinutes, todayISO, weekDates, weekStartOf } from '../domain/dates'
-import { formatDuration, Loading, sessionMeta } from '../ui/common'
+import { errorMessage, formatDuration, Loading, sessionMeta, useToast } from '../ui/common'
+import { RecoveryCard } from '../ui/Recovery'
+import { MissedSessions } from '../ui/MissedSessions'
 
 export function DashboardPage() {
   const today = todayISO()
   const weekStart = weekStartOf(today)
   const [ready, setReady] = useState(false)
+  const navigate = useNavigate()
+  const toast = useToast()
+  const quickMobility = async (t: 'M5' | 'M15') => {
+    try { navigate(`/seance/${await repo.startQuickMobility(t)}`) } catch (e) { toast(errorMessage(e), 'error') }
+  }
   useEffect(() => { repo.ensureWeek(weekStart).finally(() => setReady(true)) }, [weekStart])
 
   const week = useLiveQuery(() => repo.listRange(weekStart, addDays(weekStart, 6)), [weekStart])
@@ -48,6 +55,18 @@ export function DashboardPage() {
           <p>Aucune séance prévue dans les 15 prochains jours.</p>
         </section>
       )}
+
+      <MissedSessions />
+      <RecoveryCard date={today} />
+
+      <section className="card">
+        <h2>Mobilité express</h2>
+        <p className="small muted">Sans matériel, à faire n’importe quand.</p>
+        <div className="row-wrap">
+          <button className="btn" onClick={() => quickMobility('M5')}>🧘 5 min — réveil articulaire</button>
+          <button className="btn" onClick={() => quickMobility('M15')}>🧘 15 min — récupération</button>
+        </div>
+      </section>
 
       {!hasData && (
         <div className="callout callout-info">

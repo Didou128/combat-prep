@@ -1,8 +1,9 @@
 import { db, nowISO } from './db'
-import type { CombatLog, PlannedSession, SetLog, Settings, WeekRecord, WorkoutLog } from '../domain/types'
+import type { CombatLog, PlannedSession, RecoveryCheckin, SetLog, Settings, WeekRecord, WorkoutLog } from '../domain/types'
 
 export const BACKUP_APP = 'combat-prep'
-export const BACKUP_SCHEMA_VERSION = 1
+/** v2 : ajout des points de récupération (`checkins`). Les fichiers v1 restent importables. */
+export const BACKUP_SCHEMA_VERSION = 2
 
 export interface BackupFile {
   app: typeof BACKUP_APP
@@ -15,6 +16,7 @@ export interface BackupFile {
     workouts: WorkoutLog[]
     sets: SetLog[]
     combatLogs: CombatLog[]
+    checkins: RecoveryCheckin[]
   }
 }
 
@@ -30,6 +32,7 @@ export async function exportBackup(): Promise<BackupFile> {
       workouts: await db.workouts.toArray(),
       sets: await db.sets.toArray(),
       combatLogs: await db.combatLogs.toArray(),
+      checkins: await db.checkins.toArray(),
     },
   }
   return backup
@@ -52,6 +55,7 @@ export function parseBackup(text: string): BackupFile {
   }
   const d = raw.data
   if (!isObj(d)) throw new Error('Sauvegarde incomplète.')
+  if (raw.schemaVersion < 2 && d.checkins === undefined) d.checkins = [] // sauvegarde v1 : pas encore de suivi de récupération
   const checks: [string, string[]][] = [
     ['settings', ['id']],
     ['sessions', ['id', 'date', 'startTime', 'durationMin', 'kind', 'status']],
@@ -59,6 +63,7 @@ export function parseBackup(text: string): BackupFile {
     ['workouts', ['id', 'plannedSessionId', 'status']],
     ['sets', ['id', 'workoutLogId', 'exerciseId']],
     ['combatLogs', ['id', 'plannedSessionId']],
+    ['checkins', ['date', 'sleepHours', 'energy', 'fatigue']],
   ]
   for (const [key, fields] of checks) {
     if (!allHave(d[key], fields)) throw new Error(`Sauvegarde invalide : section « ${key} » incorrecte.`)
@@ -68,18 +73,21 @@ export function parseBackup(text: string): BackupFile {
 
 /** Remplace TOUTES les données locales par la sauvegarde (après confirmation dans l'interface). */
 export async function importBackup(file: BackupFile): Promise<void> {
-  await db.transaction('rw', [db.settings, db.sessions, db.weeks, db.workouts, db.sets, db.combatLogs], async () => {
-    await Promise.all([db.settings.clear(), db.sessions.clear(), db.weeks.clear(), db.workouts.clear(), db.sets.clear(), db.combatLogs.clear()])
+  await db.transaction('rw', [db.settings, db.sessions, db.weeks, db.workouts, db.sets, db.combatLogs, db.checkins], async () => {
+    await Promise.all([
+      db.settings.clear(), db.sessions.clear(), db.weeks.clear(), db.workouts.clear(), db.sets.clear(), db.combatLogs.clear(), db.checkins.clear(),
+    ])
     await db.settings.bulkPut(file.data.settings)
     await db.sessions.bulkPut(file.data.sessions)
     await db.weeks.bulkPut(file.data.weeks)
     await db.workouts.bulkPut(file.data.workouts)
     await db.sets.bulkPut(file.data.sets)
     await db.combatLogs.bulkPut(file.data.combatLogs)
+    await db.checkins.bulkPut(file.data.checkins)
   })
 }
 
 export function backupSummary(f: BackupFile): string {
   const d = f.data
-  return `${d.sessions.length} séances, ${d.workouts.length} entraînements, ${d.sets.length} séries, ${d.combatLogs.length} combats — exportée le ${new Date(f.exportedAt).toLocaleString('fr-FR')}`
+  return `${d.sessions.length} séances, ${d.workouts.length} entraînements, ${d.sets.length} séries, ${d.combatLogs.length} combats, ${d.checkins.length} points de récupération — exportée le ${new Date(f.exportedAt).toLocaleString('fr-FR')}`
 }

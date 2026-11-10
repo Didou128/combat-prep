@@ -6,10 +6,12 @@ import { SessionPage } from './pages/SessionPage'
 import { WorkoutPage } from './pages/WorkoutPage'
 import { LibraryPage } from './pages/LibraryPage'
 import { SettingsPage } from './pages/SettingsPage'
+import { ProgressPage } from './pages/ProgressPage'
 
 const NAV = [
   { to: '/', label: 'Accueil', icon: '🏠', end: true },
   { to: '/calendrier', label: 'Calendrier', icon: '📅' },
+  { to: '/progres', label: 'Progrès', icon: '📈' },
   { to: '/bibliotheque', label: 'Exercices', icon: '📚' },
   { to: '/parametres', label: 'Réglages', icon: '⚙️' },
 ]
@@ -34,6 +36,7 @@ export default function App() {
               <Route path="/calendrier" element={<CalendarPage />} />
               <Route path="/seance/:id" element={<SessionPage />} />
               <Route path="/entrainement/:id" element={<WorkoutPage />} />
+              <Route path="/progres" element={<ProgressPage />} />
               <Route path="/bibliotheque" element={<LibraryPage />} />
               <Route path="/parametres" element={<SettingsPage />} />
               <Route path="*" element={<div className="page"><p>Page introuvable.</p></div>} />

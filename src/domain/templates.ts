@@ -38,6 +38,32 @@ export const TEMPLATES: Record<TemplateId, SessionTemplate> = {
       { gym: 'gainage-lateral', home: 'gainage-lateral', sets: 2, durationSec: 30, restSec: 45, note: 'Par côté' },
     ],
   },
+  M5: {
+    id: 'M5', name: 'Mobilité flash (5 min)', short: 'Mobilité 5′', legHeavy: false, explosive: false, durationMin: 5,
+    focus: 'Réveil articulaire : hanches, chevilles, colonne — avant une séance, au réveil ou au bureau',
+    slots: [
+      { gym: 'mob-fente-dynamique', home: 'mob-fente-dynamique', sets: 1, reps: [5, 5], restSec: 0, note: 'Par côté' },
+      { gym: 'mob-90-90', home: 'mob-90-90', sets: 1, durationSec: 60, restSec: 0 },
+      { gym: 'mob-cheville-mur', home: 'mob-cheville-mur', sets: 1, reps: [6, 6], restSec: 0, note: 'Par côté' },
+      { gym: 'mob-thoracique', home: 'mob-thoracique', sets: 1, reps: [6, 6], restSec: 0, note: 'Par côté' },
+      { gym: 'respiration-recup', home: 'respiration-recup', sets: 1, durationSec: 45, restSec: 0 },
+    ],
+  },
+  M15: {
+    id: 'M15', name: 'Mobilité récupération (15 min)', short: 'Mobilité 15′', legHeavy: false, explosive: false, durationMin: 15,
+    focus: 'Lendemain de combat ou jour de courbatures : hanches, adducteurs, ischios, épaules',
+    slots: [
+      { gym: 'mob-fente-dynamique', home: 'mob-fente-dynamique', sets: 1, reps: [6, 6], restSec: 0, note: 'Par côté' },
+      { gym: 'mob-90-90', home: 'mob-90-90', sets: 2, durationSec: 60, restSec: 0 },
+      { gym: 'mob-cheville-mur', home: 'mob-cheville-mur', sets: 2, reps: [8, 8], restSec: 0, note: 'Par côté' },
+      { gym: 'mob-thoracique', home: 'mob-thoracique', sets: 2, reps: [6, 6], restSec: 0, note: 'Par côté' },
+      { gym: 'etirement-ischios', home: 'etirement-ischios', sets: 1, durationSec: 45, restSec: 0, note: 'Par côté' },
+      { gym: 'etirement-quadriceps', home: 'etirement-quadriceps', sets: 1, durationSec: 45, restSec: 0, note: 'Par côté' },
+      { gym: 'etirement-adducteurs', home: 'etirement-adducteurs', sets: 1, durationSec: 60, restSec: 0 },
+      { gym: 'etirement-pectoraux', home: 'etirement-pectoraux', sets: 1, durationSec: 30, restSec: 0, note: 'Par côté' },
+      { gym: 'respiration-recup', home: 'respiration-recup', sets: 1, durationSec: 90, restSec: 0 },
+    ],
+  },
   M10: {
     id: 'M10', name: 'Mobilité express (10 min)', short: 'Mobilité 10′', legHeavy: false, explosive: false, durationMin: 10,
     focus: 'Hanches, chevilles, colonne thoracique',
@@ -68,6 +94,20 @@ export const TEMPLATES: Record<TemplateId, SessionTemplate> = {
 }
 
 export const PREP_TEMPLATE_IDS: TemplateId[] = ['A', 'B', 'C']
+export const MOBILITY_TEMPLATE_IDS: TemplateId[] = ['M5', 'M10', 'M15', 'M20']
+
+/** Hypothèses de l'estimation : 4 s par répétition, 15 s de transition entre exercices. */
+const SEC_PER_REP = 4
+const TRANSITION_SEC = 15
+
+/** Durée estimée (secondes) d'une séance type, côtés compris. Sert à vérifier les durées annoncées. */
+export function estimateDurationSec(templateId: TemplateId): number {
+  return TEMPLATES[templateId].slots.reduce((total, slot) => {
+    const sides = getExercise(slot.home).perSide || slot.note === 'Par côté' ? 2 : 1
+    const work = slot.durationSec ?? (slot.reps ? slot.reps[1] * SEC_PER_REP : 0)
+    return total + slot.sets * (work * sides + slot.restSec) + TRANSITION_SEC
+  }, 0)
+}
 
 export interface ResolvedSlot extends Omit<TemplateSlot, 'gym' | 'home'> {
   exercise: Exercise

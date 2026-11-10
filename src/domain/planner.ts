@@ -73,7 +73,7 @@ export function hardViolations(
   return errs
 }
 
-function softScore(
+export function softScore(
   assignment: { day: number; templateId: TemplateId }[],
   combatDays: CombatDay[],
   previousSundayCombat: boolean,

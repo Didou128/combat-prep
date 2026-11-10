@@ -1,10 +1,12 @@
 import { db, DEFAULT_SETTINGS, nowISO, uid } from './db'
-import { addDays, dayIndex, isValidISODate, isValidTime, todayISO, weekDates, weekStartOf } from '../domain/dates'
+import { addDays, dayIndex, isValidISODate, isValidTime, todayISO, toISODate, weekDates, weekStartOf } from '../domain/dates'
 import { generateWeekPlan, type CombatDay, type PlannerResult } from '../domain/planner'
 import { PREP_TEMPLATE_IDS, TEMPLATES } from '../domain/templates'
 import type { SessionSets } from '../domain/progression'
+import { validateCheckin } from '../domain/recovery'
+import { findMissed, proposeReschedule, type RescheduleOption } from '../domain/reschedule'
 import type {
-  CombatLog, DayIndex, PlannedSession, SetLog, Settings, TemplateId, WorkoutLog,
+  CombatLog, DayIndex, PlannedSession, RecoveryCheckin, SetLog, Settings, TemplateId, WorkoutLog,
 } from '../domain/types'
 
 // ---------- Paramètres ----------
@@ -287,6 +289,117 @@ export async function saveCombatLog(sessionId: string, log: Omit<CombatLog, 'id'
     await db.combatLogs.add({ ...log, id: uid(), plannedSessionId: sessionId, date: s.date, discipline: s.kind as 'amhe' | 'kickboxing', loggedAt: nowISO() })
     await db.sessions.update(sessionId, { status: 'done', updatedAt: nowISO() })
   })
+}
+
+// ---------- Récupération ----------
+
+export async function saveCheckin(c: Omit<RecoveryCheckin, 'updatedAt'>): Promise<void> {
+  const full: RecoveryCheckin = { ...c, updatedAt: nowISO() }
+  if (!isValidISODate(full.date)) throw new Error('Date invalide.')
+  const errs = validateCheckin(full)
+  if (errs.length) throw new Error(errs.join(' '))
+  await db.checkins.put(full)
+}
+
+export async function listCheckins(from: string, to: string): Promise<RecoveryCheckin[]> {
+  return db.checkins.where('date').between(from, to, true, true).sortBy('date')
+}
+
+// ---------- Séances manquées ----------
+
+/**
+ * Séances de préparation manquées de la semaine en cours et de la précédente
+ * (au-delà, la semaine est close et il n'y a plus rien à réorganiser).
+ */
+export async function listMissed(today = todayISO()): Promise<PlannedSession[]> {
+  const from = addDays(weekStartOf(today), -7)
+  return findMissed(await listRange(from, addDays(today, -1)), today)
+}
+
+export async function rescheduleOptions(sessionId: string, today = todayISO()): Promise<RescheduleOption[]> {
+  const missed = await db.sessions.get(sessionId)
+  if (!missed) throw new Error('Séance introuvable.')
+  const ws = weekStartOf(missed.date)
+  return proposeReschedule(missed, await listRange(addDays(ws, -1), addDays(ws, 6)), today)
+}
+
+const appendNote = (notes: string | undefined, line: string) => (notes ? `${notes}
+${line}` : line)
+
+/** Applique une option de réorganisation. Rien n'est supprimé : la séance non faite est marquée « annulée ». */
+export async function applyReschedule(sessionId: string, option: RescheduleOption): Promise<void> {
+  const missed = await db.sessions.get(sessionId)
+  if (!missed) throw new Error('Séance introuvable.')
+  if (option.kind === 'move') {
+    await updateSession(sessionId, { date: option.date })
+    return
+  }
+  if (option.kind === 'skip') {
+    await updateSession(sessionId, { status: 'cancelled', notes: appendNote(missed.notes, 'Manquée, non rattrapée.') })
+    return
+  }
+  const target = await db.sessions.get(option.targetId)
+  if (!target || target.status !== 'planned') throw new Error('La séance à remplacer n’est plus disponible.')
+  await db.transaction('rw', db.sessions, async () => {
+    await updateSession(target.id, {
+      templateId: missed.templateId, environment: missed.environment ?? target.environment, light: false,
+      durationMin: TEMPLATES[missed.templateId!].durationMin,
+      notes: appendNote(target.notes, `Remplace ${TEMPLATES[target.templateId!].short} (séance ${missed.templateId} manquée).`),
+    })
+    await updateSession(missed.id, {
+      status: 'cancelled', notes: appendNote(missed.notes, `Manquée, faite le ${target.date} à la place de ${target.templateId}.`),
+    })
+  })
+}
+
+// ---------- Mobilité rapide ----------
+
+/**
+ * Crée une séance de mobilité maintenant (aujourd'hui, heure courante) et renvoie son id.
+ * Si la même routine est déjà prévue aujourd'hui et pas encore faite, on la réutilise (pas de doublon).
+ */
+export async function startQuickMobility(templateId: 'M5' | 'M15', now = new Date()): Promise<string> {
+  const pad = (n: number) => String(n).padStart(2, '0')
+  const date = toISODate(now)
+  const existing = (await listRange(date, date)).find((s) => s.kind === 'mobility' && s.templateId === templateId && s.status === 'planned')
+  if (existing) return existing.id
+  return addSession({
+    date, startTime: `${pad(now.getHours())}:${pad(now.getMinutes())}`, durationMin: TEMPLATES[templateId].durationMin,
+    kind: 'mobility', templateId, environment: 'home', status: 'planned', source: 'manual',
+  })
+}
+
+// ---------- Historique ----------
+
+export interface HistoryEntry {
+  session: PlannedSession
+  workouts: WorkoutLog[]
+  sets: SetLog[]
+  combat?: CombatLog
+}
+
+/** Séances passées ou renseignées, de la plus récente à la plus ancienne. */
+export async function listHistory(limit: number, today = todayISO()): Promise<{ entries: HistoryEntry[]; hasMore: boolean }> {
+  const all = await db.sessions
+    .orderBy('date').reverse()
+    .filter((s) => s.status !== 'planned' || s.date < today)
+    .limit(limit + 1).toArray()
+  const page = all.slice(0, limit)
+  const ids = page.map((s) => s.id)
+  const workouts = ids.length ? await db.workouts.where('plannedSessionId').anyOf(ids).toArray() : []
+  const wIds = workouts.map((w) => w.id)
+  const sets = wIds.length ? await db.sets.where('workoutLogId').anyOf(wIds).toArray() : []
+  const combats = ids.length ? await db.combatLogs.where('plannedSessionId').anyOf(ids).toArray() : []
+  const entries = page.map((session) => {
+    const ws = workouts.filter((w) => w.plannedSessionId === session.id)
+    const wsIds = new Set(ws.map((w) => w.id))
+    return {
+      session, workouts: ws,
+      sets: sets.filter((x) => wsIds.has(x.workoutLogId)).sort((a, b) => (a.loggedAt < b.loggedAt ? -1 : 1)),
+      combat: combats.find((c) => c.plannedSessionId === session.id),
+    }
+  })
+  return { entries, hasMore: all.length > limit }
 }
 
 export { weekDates }

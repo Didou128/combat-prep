@@ -3,11 +3,12 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { db } from '../db/db'
 import * as repo from '../db/repo'
-import { formatLong } from '../domain/dates'
+import { formatLong, todayISO } from '../domain/dates'
 import { buildSession, TEMPLATES } from '../domain/templates'
 import { EQUIPMENT_LABELS } from '../domain/exercises'
 import type { Environment, EquipmentId, PlannedSession, Settings } from '../domain/types'
 import { errorMessage, formatDuration, Loading, sessionMeta, StatusBadge, useConfirm, useToast } from '../ui/common'
+import { SessionRecoveryHint } from '../ui/Recovery'
 
 export const equipmentFor = (settings: Settings, env: Environment): EquipmentId[] => {
   if (env === 'gym') return settings.gymEquipment
@@ -61,6 +62,7 @@ function TrainingSession({ session, settings }: { session: PlannedSession; setti
     <div className="page">
       <Header session={session} />
       <p className="muted">{tpl.focus}</p>
+      {session.kind === 'prep' && session.status === 'planned' && session.date === todayISO() && <SessionRecoveryHint date={session.date} />}
 
       <div className="row-wrap">
         <div className="seg" role="group" aria-label="Lieu">
@@ -82,7 +84,7 @@ function TrainingSession({ session, settings }: { session: PlannedSession; setti
           <p><strong>Adapter la séance</strong> — ces propositions sont indicatives : écoute tes sensations et, en cas de douleur, consulte un professionnel de santé.</p>
           <div className="row-wrap">
             <button className="btn" onClick={() => { setShowTired(false); update({ light: true }, 'Version allégée : une série de moins, sans explosivité') }}>Version allégée</button>
-            <button className="btn" onClick={() => { setShowTired(false); update({ kind: 'mobility', templateId: 'M20', durationMin: 20, light: false }, 'Remplacée par 20 min de mobilité') }}>Remplacer par 20 min de mobilité</button>
+            <button className="btn" onClick={() => { setShowTired(false); update({ kind: 'mobility', templateId: 'M15', durationMin: 15, light: false }, 'Remplacée par 15 min de mobilité') }}>Remplacer par 15 min de mobilité</button>
             <button className="btn" onClick={async () => {
               setShowTired(false)
               if (await confirm({ title: 'Reporter au lendemain ?', message: 'Vérifie ensuite les avertissements du calendrier : le lendemain peut être une veille de combat.' })) {

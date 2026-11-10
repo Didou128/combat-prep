@@ -25,6 +25,21 @@ Application (PWA) de planification de la préparation physique autour du **kick-
 - **Bibliothèque** de 55 exercices, avec filtres (objectif, muscle, salle/domicile, niveau).
 - **Sauvegarde** : export et import d’un fichier JSON, pour passer de l’iPhone au PC.
 
+## Ajouts de l’étape 4
+
+- **Page Progrès** (onglets) :
+  - **Graphiques** sur 4, 8, 12 ou 26 semaines : meilleure charge par séance pour chaque exercice (avec un 1RM estimé indicatif), volume hebdomadaire (séries et tonnage), assiduité (séances faites, partielles, manquées). Chaque graphique a une info-bulle (survol, toucher, clavier) et un tableau des données. Sans donnée, un message l’indique : aucune valeur n’est inventée.
+  - **Historique** des séances passées, des plus récentes aux plus anciennes : statut, séries réalisées, ressenti, notes, comptes rendus de combat.
+  - **Récupération** : courbe du score sur 30 jours et tableau des saisies.
+- **Suivi de la récupération** : sur l’accueil, un point du jour en 30 secondes (heures de sommeil, puis qualité du sommeil, énergie, fatigue, courbatures et motivation notées de 1 à 5). Il produit un score sur 100, un niveau (bon, moyen, insuffisant) et des **suggestions prudentes, présentées comme indicatives** : version allégée, mobilité, sommeil, semaine plus légère si la fatigue dure 3 jours. Le rappel s’affiche aussi sur la séance du jour.
+- **Séances manquées** : une séance de préparation passée et non faite apparaît sur l’accueil avec des options :
+  - la déplacer sur un jour libre de **la même semaine**, en respectant toutes les règles du planificateur ;
+  - remplacer une séance moins prioritaire (ordre A, puis C, puis B) ;
+  - ne pas la rattraper.
+
+  On ne met jamais deux séances le même jour et on ne reporte rien à la semaine suivante. La séance non faite est marquée « annulée », jamais supprimée.
+- **Mobilité** : nouvelles routines de **5 min** (réveil articulaire) et **15 min** (récupération), sans matériel, lançables depuis l’accueil. La fatigue propose désormais la routine de 15 min.
+
 ## Lancer en local
 
 ```bash
@@ -32,7 +47,8 @@ npm install
 npm run dev          # http://localhost:5173
 npm test             # tests unitaires (Vitest)
 npm run build && npx vite preview --port 4173
-npm run test:e2e     # parcours complet dans Chromium (iPhone + PC), nécessite le preview lancé
+npm run test:e2e     # parcours complet dans Chromium (iPhone + PC), nécessite le preview lancé et Playwright
+# Pour utiliser Edge ou Chrome déjà installés : PW_CHANNEL=msedge (ou chrome) npm run test:e2e
 ```
 
 ## Mise en ligne (GitHub Pages)
@@ -51,9 +67,9 @@ Sur PC (Chrome ou Edge) : utiliser l’icône **Installer** dans la barre d’ad
 
 | Dossier | Rôle |
 |---|---|
-| `src/domain/` | Logique pure et testée : dates, bibliothèque d’exercices, séances types, générateur de semaine, détection des conflits, progression |
+| `src/domain/` | Logique pure et testée : dates, bibliothèque d’exercices, séances types, générateur de semaine, détection des conflits, progression, statistiques, récupération, réorganisation des séances manquées |
 | `src/db/` | Base locale IndexedDB (Dexie), opérations, sauvegarde et restauration |
-| `src/pages/`, `src/ui/` | Interface React |
+| `src/pages/`, `src/ui/` | Interface React (graphiques SVG maison dans `src/ui/charts.tsx`, sans dépendance) |
 
 Une **séance type** (A, B, C, M10, M20) est un modèle défini dans le code. Une **séance planifiée** est une occurrence datée stockée dans la base. Les règles récurrentes (AMHE, kick-boxing) ne servent qu’à créer les occurrences de chaque semaine **à sa première ouverture**. Les semaines passées ne sont jamais remplies automatiquement.
 
@@ -65,7 +81,8 @@ Une **séance type** (A, B, C, M10, M20) est un modèle défini dans le code. Un
   - le chronomètre ne sonne pas en arrière-plan, mais il reste juste à la réouverture ;
   - pas de vibration ;
   - pas d’accès à Apple Santé.
-- **Pas encore inclus :** suivi de la récupération, graphiques de progression, réorganisation automatique après une séance manquée (prévus pour l’étape 4).
+- **Récupération :** le score et les seuils sont des règles simples (voir `src/domain/recovery.ts`), sans validation scientifique. Ils ne posent pas de diagnostic.
+- **Graphiques :** le 1RM estimé (formule d’Epley) n’est qu’un ordre de grandeur.
 - **Bibliothèque fixe :** les exercices sont définis dans le code (pas encore d’exercices personnalisés).
 
 Les recommandations sont indicatives et ne remplacent pas l’avis d’un professionnel de santé.
