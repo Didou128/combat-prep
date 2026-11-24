@@ -2,6 +2,10 @@ import { HashRouter, NavLink, Route, Routes } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from './db/db'
 import { setTemplateNames } from './domain/templates'
+import { hubHref } from './ui/hub'
+
+// Retour à l'accueil central, seulement quand Combat Prep est servi par celui-ci (sous /sport/).
+const HUB = hubHref(import.meta.env.BASE_URL)
 import { UIProvider } from './ui/common'
 import { DashboardPage } from './pages/DashboardPage'
 import { CalendarPage } from './pages/CalendarPage'
@@ -30,6 +34,7 @@ export default function App() {
       <UIProvider>
         <div className="app">
           <nav className="nav" aria-label="Navigation principale">
+            {HUB && <a className="hub-link hub-link-nav" href={HUB}>← Accueil</a>}
             <div className="brand">Combat<span>Prep</span></div>
             {NAV.map((n) => (
               <NavLink key={n.to} to={n.to} end={n.end} className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
@@ -39,6 +44,7 @@ export default function App() {
             ))}
           </nav>
           <main className="main">
+            {HUB && <div className="hub-top"><a className="hub-link" href={HUB}>← Accueil</a></div>}
             <Routes>
               <Route path="/" element={<DashboardPage />} />
               <Route path="/calendrier" element={<CalendarPage />} />
