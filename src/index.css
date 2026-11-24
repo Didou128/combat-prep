@@ -63,6 +63,19 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .main { flex: 1; min-width: 0; padding-bottom: calc(var(--nav-h) + env(safe-area-inset-bottom) + 1rem); padding-top: env(safe-area-inset-top); }
 .page { max-width: 1280px; margin: 0 auto; padding: 1rem; }
 
+/* Retour à l'accueil central (seulement sous /sport/) : en haut du contenu sur téléphone, dans le menu sur PC */
+.hub-top { max-width: 1280px; margin: 0 auto; padding: .75rem 1rem 0; }
+.hub-link {
+  display: inline-flex; align-items: center; min-height: 36px; padding: .3rem .85rem;
+  border: 1px solid var(--border); border-radius: 999px; color: var(--muted); font-size: .9rem; text-decoration: none;
+}
+.hub-link:hover { color: var(--text); border-color: var(--muted); }
+.hub-link-nav { display: none; }
+@media (min-width: 900px) {
+  .hub-top { display: none; }
+  .hub-link-nav { display: inline-flex; align-self: flex-start; margin: 0 0 .75rem .5rem; }
+}
+
 @media (min-width: 900px) {
   .nav { position: sticky; top: 0; flex-direction: column; justify-content: flex-start; width: 210px; height: 100dvh; border-top: 0; border-right: 1px solid var(--border); padding: 1rem .5rem; gap: .25rem; }
   .brand { display: block; }
