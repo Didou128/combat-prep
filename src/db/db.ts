@@ -1,6 +1,7 @@
 import Dexie, { type EntityTable } from 'dexie'
 import type { CombatLog, PlannedSession, RecoveryCheckin, SetLog, Settings, WeekRecord, WorkoutLog } from '../domain/types'
 import { ALL_GYM_EQUIPMENT } from '../domain/exercises'
+import { DEFAULT_TEMPLATE_NAMES, normalizeTemplateNames } from '../domain/templates'
 
 export class AppDB extends Dexie {
   settings!: EntityTable<Settings, 'id'>
@@ -25,6 +26,13 @@ export class AppDB extends Dexie {
     this.version(2).stores({
       checkins: 'date',
     })
+    // v3 : noms des séances types modifiables, enregistrés en entier dans les réglages
+    // (l'accueil les lit directement). Les réglages existants reçoivent les noms par défaut.
+    this.version(3).stores({}).upgrade((tx) =>
+      tx.table('settings').toCollection().modify((s: Settings) => {
+        s.templateNames = normalizeTemplateNames(s.templateNames)
+      }),
+    )
   }
 }
 
@@ -50,6 +58,7 @@ export const DEFAULT_SETTINGS: Settings = {
   backpackMaxKg: 0,
   dumbbellIncrementKg: 2,
   barbellIncrementKg: 2.5,
+  templateNames: { ...DEFAULT_TEMPLATE_NAMES },
 }
 
 export const uid = () =>

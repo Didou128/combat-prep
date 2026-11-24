@@ -1,5 +1,5 @@
 import { addDays, dayIndex, timeToMinutes } from './dates'
-import { TEMPLATES } from './templates'
+import { TEMPLATES, templateName } from './templates'
 import type { PlannedSession } from './types'
 
 export interface Warning {
@@ -13,7 +13,7 @@ const isCombat = (s: PlannedSession) => s.kind === 'amhe' || s.kind === 'kickbox
 const isPrep = (s: PlannedSession) => s.kind === 'prep'
 const isLegHeavy = (s: PlannedSession) => s.kind === 'prep' && !!s.templateId && TEMPLATES[s.templateId].legHeavy
 const label = (s: PlannedSession) =>
-  s.kind === 'amhe' ? 'AMHE' : s.kind === 'kickboxing' ? 'Kick-boxing' : s.templateId ? TEMPLATES[s.templateId].short : s.title ?? 'Séance'
+  s.kind === 'amhe' ? 'AMHE' : s.kind === 'kickboxing' ? 'Kick-boxing' : s.templateId ? templateName(s.templateId) : s.title ?? 'Séance'
 
 /**
  * Analyse une liste de séances (idéalement la semaine + les jours voisins)

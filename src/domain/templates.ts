@@ -3,7 +3,7 @@ import type { Environment, EquipmentId, Exercise, SessionTemplate, TemplateId, T
 
 export const TEMPLATES: Record<TemplateId, SessionTemplate> = {
   A: {
-    id: 'A', name: 'A — Force bas du corps + tronc', short: 'Force jambes', legHeavy: true, explosive: false, durationMin: 60,
+    id: 'A', name: 'A — Force bas du corps + tronc', legHeavy: true, explosive: false, durationMin: 60,
     focus: 'Squat, charnière de hanche, unilatéral, mollets, anti-rotation',
     slots: [
       { gym: 'goblet-squat', home: 'squat-sac', sets: 3, reps: [8, 12], restSec: 120, rirTarget: [1, 3] },
@@ -14,7 +14,7 @@ export const TEMPLATES: Record<TemplateId, SessionTemplate> = {
     ],
   },
   B: {
-    id: 'B', name: 'B — Force haut du corps', short: 'Force haut', legHeavy: false, explosive: false, durationMin: 60,
+    id: 'B', name: 'B — Force haut du corps', legHeavy: false, explosive: false, durationMin: 60,
     focus: 'Poussée, tirage horizontal et vertical, épaules, bras',
     slots: [
       { gym: 'developpe-halteres', home: 'pompes-parallettes', sets: 3, reps: [8, 12], restSec: 120, rirTarget: [1, 3] },
@@ -26,7 +26,7 @@ export const TEMPLATES: Record<TemplateId, SessionTemplate> = {
     ],
   },
   C: {
-    id: 'C', name: 'C — Explosivité + renforcement combat', short: 'Explosivité', legHeavy: true, explosive: true, durationMin: 55,
+    id: 'C', name: 'C — Explosivité + renforcement combat', legHeavy: true, explosive: true, durationMin: 55,
     focus: 'Puissance en début de séance, unilatéral, hanches, chevilles, épaules',
     slots: [
       { gym: 'squat-saute', home: 'squat-saute', sets: 3, reps: [4, 5], restSec: 120, note: 'Qualité maximale, arrête si la hauteur baisse' },
@@ -39,7 +39,7 @@ export const TEMPLATES: Record<TemplateId, SessionTemplate> = {
     ],
   },
   M5: {
-    id: 'M5', name: 'Mobilité flash (5 min)', short: 'Mobilité 5′', legHeavy: false, explosive: false, durationMin: 5,
+    id: 'M5', name: 'Mobilité flash (5 min)', legHeavy: false, explosive: false, durationMin: 5,
     focus: 'Réveil articulaire : hanches, chevilles, colonne — avant une séance, au réveil ou au bureau',
     slots: [
       { gym: 'mob-fente-dynamique', home: 'mob-fente-dynamique', sets: 1, reps: [5, 5], restSec: 0, note: 'Par côté' },
@@ -50,7 +50,7 @@ export const TEMPLATES: Record<TemplateId, SessionTemplate> = {
     ],
   },
   M15: {
-    id: 'M15', name: 'Mobilité récupération (15 min)', short: 'Mobilité 15′', legHeavy: false, explosive: false, durationMin: 15,
+    id: 'M15', name: 'Mobilité récupération (15 min)', legHeavy: false, explosive: false, durationMin: 15,
     focus: 'Lendemain de combat ou jour de courbatures : hanches, adducteurs, ischios, épaules',
     slots: [
       { gym: 'mob-fente-dynamique', home: 'mob-fente-dynamique', sets: 1, reps: [6, 6], restSec: 0, note: 'Par côté' },
@@ -65,7 +65,7 @@ export const TEMPLATES: Record<TemplateId, SessionTemplate> = {
     ],
   },
   M10: {
-    id: 'M10', name: 'Mobilité express (10 min)', short: 'Mobilité 10′', legHeavy: false, explosive: false, durationMin: 10,
+    id: 'M10', name: 'Mobilité express (10 min)', legHeavy: false, explosive: false, durationMin: 10,
     focus: 'Hanches, chevilles, colonne thoracique',
     slots: [
       { gym: 'mob-90-90', home: 'mob-90-90', sets: 1, durationSec: 90, restSec: 0 },
@@ -77,7 +77,7 @@ export const TEMPLATES: Record<TemplateId, SessionTemplate> = {
     ],
   },
   M20: {
-    id: 'M20', name: 'Mobilité complète (20 min)', short: 'Mobilité 20′', legHeavy: false, explosive: false, durationMin: 20,
+    id: 'M20', name: 'Mobilité complète (20 min)', legHeavy: false, explosive: false, durationMin: 20,
     focus: 'Récupération : hanches, adducteurs, ischios, épaules',
     slots: [
       { gym: 'mob-fente-dynamique', home: 'mob-fente-dynamique', sets: 1, reps: [6, 6], restSec: 0, note: 'Par côté' },
@@ -147,8 +147,35 @@ export function buildSession(
   return out
 }
 
-export function templateLabel(id?: TemplateId): string {
-  return id ? TEMPLATES[id].name : ''
+// ---------- Noms des séances (modifiables dans les réglages) ----------
+
+export const TEMPLATE_IDS: TemplateId[] = [...PREP_TEMPLATE_IDS, ...MOBILITY_TEMPLATE_IDS]
+export const TEMPLATE_NAME_MAX = 60
+
+export const DEFAULT_TEMPLATE_NAMES = Object.fromEntries(
+  TEMPLATE_IDS.map((id) => [id, TEMPLATES[id].name]),
+) as Record<TemplateId, string>
+
+/** Noms complets : chaque nom manquant, vide ou invalide reprend sa valeur par défaut. */
+export function normalizeTemplateNames(names?: Partial<Record<TemplateId, unknown>> | null): Record<TemplateId, string> {
+  const out = { ...DEFAULT_TEMPLATE_NAMES }
+  for (const id of TEMPLATE_IDS) {
+    const v = names?.[id]
+    if (typeof v === 'string' && v.trim()) out[id] = v.trim().slice(0, TEMPLATE_NAME_MAX)
+  }
+  return out
+}
+
+// Noms en cours d'utilisation. App.tsx les met à jour à chaque changement des réglages,
+// pour que les messages du planificateur et l'affichage utilisent tous le même nom.
+let currentNames = DEFAULT_TEMPLATE_NAMES
+
+export function setTemplateNames(names?: Partial<Record<TemplateId, unknown>> | null): void {
+  currentNames = normalizeTemplateNames(names)
+}
+
+export function templateName(id: TemplateId): string {
+  return currentNames[id]
 }
 
 export function substitutesFor(exerciseId: string, equipment: readonly EquipmentId[]): Exercise[] {

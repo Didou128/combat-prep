@@ -1,9 +1,14 @@
 import { db, nowISO } from './db'
+import { normalizeTemplateNames } from '../domain/templates'
 import type { CombatLog, PlannedSession, RecoveryCheckin, SetLog, Settings, WeekRecord, WorkoutLog } from '../domain/types'
 
 export const BACKUP_APP = 'combat-prep'
-/** v2 : ajout des points de récupération (`checkins`). Les fichiers v1 restent importables. */
-export const BACKUP_SCHEMA_VERSION = 2
+/**
+ * v2 : ajout des points de récupération (`checkins`).
+ * v3 : noms des séances types dans les réglages (`templateNames`).
+ * Les fichiers v1 et v2 restent importables : les noms manquants reprennent leur valeur par défaut.
+ */
+export const BACKUP_SCHEMA_VERSION = 3
 
 export interface BackupFile {
   app: typeof BACKUP_APP
@@ -77,7 +82,7 @@ export async function importBackup(file: BackupFile): Promise<void> {
     await Promise.all([
       db.settings.clear(), db.sessions.clear(), db.weeks.clear(), db.workouts.clear(), db.sets.clear(), db.combatLogs.clear(), db.checkins.clear(),
     ])
-    await db.settings.bulkPut(file.data.settings)
+    await db.settings.bulkPut(file.data.settings.map((s) => ({ ...s, templateNames: normalizeTemplateNames(s.templateNames) })))
     await db.sessions.bulkPut(file.data.sessions)
     await db.weeks.bulkPut(file.data.weeks)
     await db.workouts.bulkPut(file.data.workouts)

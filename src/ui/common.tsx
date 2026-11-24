@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react'
-import { TEMPLATES } from '../domain/templates'
+import { TEMPLATES, templateName } from '../domain/templates'
 import type { PlannedSession, SessionStatus } from '../domain/types'
 
 // ---------- Méta-données visuelles ----------
@@ -10,10 +10,10 @@ export function sessionMeta(s: Pick<PlannedSession, 'kind' | 'templateId' | 'tit
   switch (s.kind) {
     case 'amhe': return { label: 'AMHE', category: 'combat', icon: '⚔️' }
     case 'kickboxing': return { label: 'Kick-boxing', category: 'combat', icon: '🥊' }
-    case 'mobility': return { label: s.templateId ? TEMPLATES[s.templateId].name : 'Mobilité', category: 'mobilite', icon: '🧘' }
+    case 'mobility': return { label: s.templateId ? templateName(s.templateId) : 'Mobilité', category: 'mobilite', icon: '🧘' }
     case 'prep': {
       const t = s.templateId ? TEMPLATES[s.templateId] : undefined
-      return { label: t?.name ?? 'Préparation physique', category: t?.explosive ? 'explosivite' : 'force', icon: t?.explosive ? '⚡' : '🏋️' }
+      return { label: s.templateId ? templateName(s.templateId) : 'Préparation physique', category: t?.explosive ? 'explosivite' : 'force', icon: t?.explosive ? '⚡' : '🏋️' }
     }
     default: return { label: s.title || 'Autre séance', category: 'autre', icon: '•' }
   }

@@ -27,7 +27,14 @@ Langue de l'interface et des échanges : **français**.
 - Étapes 1 à 4 terminées (voir README.md).
   - Étape 4 : page Progrès (graphiques, historique, récupération), point de récupération quotidien, séances manquées, mobilité 5 et 15 min.
   - Logique dans `src/domain/stats.ts`, `recovery.ts`, `reschedule.ts` (tests : `step4.test.ts`).
-  - Dexie v2 : table `checkins` (clé = date). Sauvegarde en v2 ; les fichiers v1 restent importables.
+  - Dexie v2 : table `checkins` (clé = date).
+- Noms des séances types modifiables (Réglages → Noms des séances) :
+  - stockés en entier dans `settings.templateNames` ; Dexie v3 les remplit pour les bases existantes ;
+  - affichage et messages : toujours `templateName(id)` (`src/domain/templates.ts`), jamais `TEMPLATES[id].name` ;
+  - sauvegarde v3 ; les fichiers v1 et v2 restent importables (noms par défaut ajoutés) ; tests : `src/db/templateNames.test.ts`.
+- Combat Prep est aussi servi sous `/sport/` par l'accueil (`../hub`), qui lit `sessions` et `settings.templateNames` en lecture seule.
+  Tout changement de ces champs doit être répercuté dans `hub/src/domain/sport.ts`.
+- Tests unitaires : les lancer depuis PowerShell (`npx vitest run`). Depuis Git Bash, vitest échoue au démarrage sur ce poste.
 - Prochaine étape : **étape 5** : tests, corrections, documentation.
 - Synchronisation iPhone ↔ PC envisagée plus tard avec Supabase. Pour l'instant : export/import JSON.
 

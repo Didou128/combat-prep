@@ -1,6 +1,6 @@
 import { addDays, dayIndex, weekStartOf } from './dates'
 import { hardViolations, softScore, type CombatDay } from './planner'
-import { TEMPLATES } from './templates'
+import { templateName } from './templates'
 import type { PlannedSession, TemplateId } from './types'
 
 /**
@@ -87,7 +87,7 @@ export function describeOption(o: RescheduleOption, missedTemplate: TemplateId, 
   switch (o.kind) {
     case 'move': return `Déplacer à ${formatDate(o.date)}${o.note ? ` — ${o.note}` : ''}`
     case 'replace':
-      return `Faire ${TEMPLATES[missedTemplate].short} à la place de ${TEMPLATES[o.targetTemplateId].short} (${formatDate(o.date)}), plus prioritaire pour la force`
+      return `Faire ${templateName(missedTemplate)} à la place de ${templateName(o.targetTemplateId)} (${formatDate(o.date)}), plus prioritaire pour la force`
     case 'skip': return 'Ne pas rattraper : la semaine continue normalement'
   }
 }

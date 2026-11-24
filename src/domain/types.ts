@@ -71,6 +71,8 @@ export interface Settings {
   backpackMaxKg: number
   dumbbellIncrementKg: number
   barbellIncrementKg: number
+  /** Nom affiché de chaque séance type, modifiable dans les réglages (lu aussi par l'accueil). */
+  templateNames: Record<TemplateId, string>
   lastExportAt?: string
 }
 
@@ -182,8 +184,8 @@ export interface TemplateSlot {
 
 export interface SessionTemplate {
   id: TemplateId
+  /** Nom par défaut. Le nom affiché vient des réglages : utiliser templateName(id). */
   name: string
-  short: string
   focus: string
   legHeavy: boolean
   explosive: boolean

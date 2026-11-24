@@ -1,4 +1,4 @@
-import { TEMPLATES } from './templates'
+import { TEMPLATES, templateName } from './templates'
 import type { DayIndex, Environment, TemplateId } from './types'
 
 /**
@@ -152,7 +152,7 @@ export function generateWeekPlan(input: PlannerInput): PlannerResult {
   const notes: string[] = []
   if (dropped.length) {
     notes.push(
-      `Impossible de placer ${dropped.map((t) => TEMPLATES[t].short).join(', ')} en respectant la récupération avant les combats : séance(s) non programmée(s) cette semaine.`,
+      `Impossible de placer ${dropped.map(templateName).join(', ')} en respectant la récupération avant les combats : séance(s) non programmée(s) cette semaine.`,
     )
   }
   const placedDays = best?.days ?? []

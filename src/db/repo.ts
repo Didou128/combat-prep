@@ -1,7 +1,7 @@
 import { db, DEFAULT_SETTINGS, nowISO, uid } from './db'
 import { addDays, dayIndex, isValidISODate, isValidTime, todayISO, toISODate, weekDates, weekStartOf } from '../domain/dates'
 import { generateWeekPlan, type CombatDay, type PlannerResult } from '../domain/planner'
-import { PREP_TEMPLATE_IDS, TEMPLATES } from '../domain/templates'
+import { normalizeTemplateNames, PREP_TEMPLATE_IDS, TEMPLATE_IDS, TEMPLATE_NAME_MAX, TEMPLATES, templateName } from '../domain/templates'
 import type { SessionSets } from '../domain/progression'
 import { validateCheckin } from '../domain/recovery'
 import { findMissed, proposeReschedule, type RescheduleOption } from '../domain/reschedule'
@@ -13,7 +13,7 @@ import type {
 
 export async function getSettings(): Promise<Settings> {
   const s = await db.settings.get('main')
-  if (s) return { ...DEFAULT_SETTINGS, ...s }
+  if (s) return { ...DEFAULT_SETTINGS, ...s, templateNames: normalizeTemplateNames(s.templateNames) }
   await db.settings.put(DEFAULT_SETTINGS)
   return DEFAULT_SETTINGS
 }
@@ -28,13 +28,18 @@ export function validateSettings(s: Settings): string[] {
   if (s.gymSessionsPerWeek < 0 || s.gymSessionsPerWeek > 7) errs.push('Nombre de séances en salle entre 0 et 7.')
   if (s.backpackMaxKg < 0 || s.backpackMaxKg > 60) errs.push('Poids du sac entre 0 et 60 kg.')
   if (s.dumbbellIncrementKg <= 0 || s.dumbbellIncrementKg > 10) errs.push('Incrément haltères entre 0,5 et 10 kg.')
+  for (const id of TEMPLATE_IDS) {
+    const name = s.templateNames?.[id]?.trim() ?? ''
+    if (!name) errs.push(`Nom de la séance ${id} vide.`)
+    else if (name.length > TEMPLATE_NAME_MAX) errs.push(`Nom de la séance ${id} trop long (${TEMPLATE_NAME_MAX} caractères au plus).`)
+  }
   return errs
 }
 
 export async function saveSettings(s: Settings): Promise<void> {
   const errs = validateSettings(s)
   if (errs.length) throw new Error(errs.join(' '))
-  await db.settings.put(s)
+  await db.settings.put({ ...s, templateNames: normalizeTemplateNames(s.templateNames) })
 }
 
 // ---------- Séances ----------
@@ -344,7 +349,7 @@ export async function applyReschedule(sessionId: string, option: RescheduleOptio
     await updateSession(target.id, {
       templateId: missed.templateId, environment: missed.environment ?? target.environment, light: false,
       durationMin: TEMPLATES[missed.templateId!].durationMin,
-      notes: appendNote(target.notes, `Remplace ${TEMPLATES[target.templateId!].short} (séance ${missed.templateId} manquée).`),
+      notes: appendNote(target.notes, `Remplace ${templateName(target.templateId!)} (séance ${missed.templateId} manquée).`),
     })
     await updateSession(missed.id, {
       status: 'cancelled', notes: appendNote(missed.notes, `Manquée, faite le ${target.date} à la place de ${target.templateId}.`),

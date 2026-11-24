@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { addDays, DAY_SHORT, dayIndex, formatLong, todayISO, weekStartOf } from '../domain/dates'
-import { TEMPLATES } from '../domain/templates'
+import { TEMPLATES, templateName } from '../domain/templates'
 import type { Environment, PlannedSession, SessionKind, SessionStatus, TemplateId } from '../domain/types'
 import { MOBILITY_TEMPLATE_IDS } from '../domain/templates'
 import * as repo from '../db/repo'
@@ -108,7 +108,7 @@ export function SessionEditor({ session, defaultDate, onClose }: { session?: Pla
           <label className="field">
             <span>Séance type</span>
             <select value={d.templateId} onChange={(e) => { const t = e.target.value as TemplateId; setD((x) => ({ ...x, templateId: t, durationMin: TEMPLATES[t].durationMin })) }}>
-              {templatesForKind.map((t) => <option key={t} value={t}>{TEMPLATES[t].name}</option>)}
+              {templatesForKind.map((t) => <option key={t} value={t}>{templateName(t)}</option>)}
             </select>
           </label>
         )}

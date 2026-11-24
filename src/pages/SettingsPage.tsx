@@ -5,7 +5,8 @@ import * as repo from '../db/repo'
 import { backupSummary, exportBackup, importBackup, parseBackup } from '../db/backup'
 import { DAY_NAMES, todayISO } from '../domain/dates'
 import { ALL_GYM_EQUIPMENT, EQUIPMENT_LABELS, HOME_EQUIPMENT_CHOICES } from '../domain/exercises'
-import type { DayIndex, EquipmentId, Settings } from '../domain/types'
+import { DEFAULT_TEMPLATE_NAMES, normalizeTemplateNames, TEMPLATE_IDS, TEMPLATE_NAME_MAX, TEMPLATES } from '../domain/templates'
+import type { DayIndex, EquipmentId, Settings, TemplateId } from '../domain/types'
 import { errorMessage, Loading, useConfirm, useToast } from '../ui/common'
 
 export function SettingsPage() {
@@ -16,11 +17,13 @@ export function SettingsPage() {
   const confirm = useConfirm()
   const fileRef = useRef<HTMLInputElement>(null)
 
-  useEffect(() => { if (stored && !s) setS({ ...DEFAULT_SETTINGS, ...stored }) }, [stored, s])
+  useEffect(() => { if (stored && !s) setS({ ...DEFAULT_SETTINGS, ...stored, templateNames: normalizeTemplateNames(stored.templateNames) }) }, [stored, s])
   useEffect(() => { navigator.storage?.persisted?.().then(setPersisted).catch(() => setPersisted(null)) }, [])
 
   if (!s) return <div className="page"><Loading /></div>
   const set = <K extends keyof Settings>(k: K, v: Settings[K]) => setS({ ...s, [k]: v })
+  const setName = (id: TemplateId, name: string) => set('templateNames', { ...s.templateNames, [id]: name })
+  const namesChanged = TEMPLATE_IDS.some((id) => s.templateNames[id] !== DEFAULT_TEMPLATE_NAMES[id])
   const toggleEq = (key: 'homeEquipment' | 'gymEquipment', id: EquipmentId) =>
     set(key, s[key].includes(id) ? s[key].filter((x) => x !== id) : [...s[key], id])
 
@@ -159,6 +162,23 @@ export function SettingsPage() {
             <label key={id} className="check"><input type="checkbox" checked={s.gymEquipment.includes(id)} onChange={() => toggleEq('gymEquipment', id)} /> {EQUIPMENT_LABELS[id]}</label>
           ))}
         </div>
+      </section>
+
+      <section className="card">
+        <h2>Noms des séances</h2>
+        <p className="small muted">Ces noms s’affichent partout : calendrier, séances, messages et page d’accueil. Le contenu des séances ne change pas.</p>
+        <div className="form-grid">
+          {TEMPLATE_IDS.map((id) => (
+            <label key={id} className="field"><span>Séance {id}</span>
+              <input type="text" required maxLength={TEMPLATE_NAME_MAX} value={s.templateNames[id]} placeholder={DEFAULT_TEMPLATE_NAMES[id]}
+                onChange={(e) => setName(id, e.target.value)} />
+              <span className="hint">{TEMPLATES[id].focus}</span>
+            </label>
+          ))}
+        </div>
+        {namesChanged && (
+          <button className="btn mt" onClick={() => set('templateNames', { ...DEFAULT_TEMPLATE_NAMES })}>Revenir aux noms d’origine</button>
+        )}
       </section>
 
       <section className="card">

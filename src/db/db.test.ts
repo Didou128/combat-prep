@@ -210,10 +210,10 @@ describe('étape 4 : récupération, séances manquées, historique', () => {
     expect((await repo.listHistory(1, '2026-10-29')).hasMore).toBe(true)
   })
 
-  it('sauvegarde v2 : les points de récupération sont exportés et réimportés ; un fichier v1 reste importable', async () => {
+  it('sauvegarde : les points de récupération sont exportés et réimportés ; un fichier v1 reste importable', async () => {
     await repo.saveCheckin({ date: '2026-10-29', ...ck })
     const backup = await exportBackup()
-    expect(backup.schemaVersion).toBe(2)
+    expect(backup.schemaVersion).toBe(3)
     useDatabase(new AppDB(`import-v2-${n++}`))
     await importBackup(parseBackup(JSON.stringify(backup)))
     expect(await db.checkins.count()).toBe(1)
